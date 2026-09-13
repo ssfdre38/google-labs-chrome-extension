@@ -19,6 +19,26 @@ function updateBadge(status) {
 
 const HEALTH_URL = "http://127.0.0.1:18885/health";
 
+let heartbeatInterval = null;
+
+function startHeartbeat() {
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  heartbeatInterval = setInterval(() => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify({ event: "ping", timestamp: Date.now() }));
+      } catch {}
+    }
+  }, 15000);
+}
+
+function stopHeartbeat() {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+}
+
 async function connectWebSocket() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
     return;
@@ -45,6 +65,7 @@ async function connectWebSocket() {
     ws.onopen = () => {
       console.log("[Google Labs MCP Bridge] Connected to MCP WebSocket server at", MCP_WS_URL);
       updateBadge("connected");
+      startHeartbeat();
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
@@ -60,6 +81,20 @@ async function connectWebSocket() {
     ws.onmessage = async (event) => {
       try {
         const msg = JSON.parse(event.data);
+
+        // Fast path for heartbeats
+        if (msg.event === "ping") {
+          ws.send(JSON.stringify({ event: "pong", timestamp: Date.now() }));
+          return;
+        }
+        if (msg.event === "pong") {
+          return;
+        }
+        if (msg.method === "ping") {
+          ws.send(JSON.stringify({ id: msg.id, success: true, result: { pong: true } }));
+          return;
+        }
+
         const { id, method, params } = msg;
 
         updateBadge("busy");
@@ -87,15 +122,18 @@ async function connectWebSocket() {
 
     ws.onclose = () => {
       console.log("[Google Labs MCP Bridge] Disconnected. Standby mode...");
+      stopHeartbeat();
       updateBadge("disconnected");
       scheduleReconnect();
     };
 
     ws.onerror = (err) => {
+      stopHeartbeat();
       updateBadge("disconnected");
       try { ws.close(); } catch {}
     };
   } catch (e) {
+    stopHeartbeat();
     updateBadge("disconnected");
     scheduleReconnect();
   }
@@ -323,3 +361,23 @@ connectWebSocket();
 // Listen for alarms or wakeups
 chrome.runtime.onStartup.addListener(() => connectWebSocket());
 chrome.runtime.onInstalled.addListener(() => connectWebSocket());
+
+// Register periodic keepalive alarm (every 0.5 minutes / 30 seconds)
+try {
+  chrome.alarms.create("mcp_keepalive", { periodInMinutes: 0.5 });
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === "mcp_keepalive") {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        connectWebSocket();
+      }
+    }
+  });
+} catch (e) {
+  console.warn("Alarms keepalive setup warning:", e);
+}
+
+// Ensure connection is active when user interacts with tabs or windows
+chrome.tabs.onActivated.addListener(() => connectWebSocket());
+chrome.tabs.onUpdated.addListener(() => connectWebSocket());
+chrome.windows.onFocusChanged.addListener(() => connectWebSocket());
+
