@@ -17,8 +17,25 @@ function updateBadge(status) {
   }
 }
 
-function connectWebSocket() {
+const HEALTH_URL = "http://127.0.0.1:18885/health";
+
+async function connectWebSocket() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
+
+  // Probe health endpoint silently first to avoid browser ERR_CONNECTION_REFUSED error
+  try {
+    const res = await fetch(HEALTH_URL, { method: "GET", cache: "no-store" });
+    if (!res.ok) {
+      updateBadge("disconnected");
+      scheduleReconnect();
+      return;
+    }
+  } catch (probeErr) {
+    // Bridge server is currently offline; remain in clean standby without spamming console
+    updateBadge("disconnected");
+    scheduleReconnect();
     return;
   }
 
@@ -69,29 +86,27 @@ function connectWebSocket() {
     };
 
     ws.onclose = () => {
-      console.log("[Google Labs MCP Bridge] Disconnected. Retrying in 3s...");
+      console.log("[Google Labs MCP Bridge] Disconnected. Standby mode...");
       updateBadge("disconnected");
       scheduleReconnect();
     };
 
     ws.onerror = (err) => {
-      console.warn("[Google Labs MCP Bridge] Socket error:", err);
       updateBadge("disconnected");
-      ws.close();
+      try { ws.close(); } catch {}
     };
   } catch (e) {
-    console.warn("[Google Labs MCP Bridge] Connection error:", e);
     updateBadge("disconnected");
     scheduleReconnect();
   }
 }
 
-function scheduleReconnect() {
+function scheduleReconnect(delay = 3000) {
   if (!reconnectTimer) {
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
       connectWebSocket();
-    }, 3000);
+    }, delay);
   }
 }
 
