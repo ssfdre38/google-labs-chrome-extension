@@ -318,10 +318,16 @@ async function handleRpcMethod(method, params) {
 
   if (method === "capture_screenshot") {
     const tab = await findTargetTab();
-    if (!tab) throw new Error("No active Google Flow tab found.");
+    if (!tab) throw new Error("No active Google Flow or Labs tab found.");
 
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
-    return { dataUrl, sizeBytes: dataUrl.length };
+    try {
+      const snap = await sendCdp(tab.id, "Page.captureScreenshot", { format: "png" });
+      const dataUrl = `data:image/png;base64,${snap.data}`;
+      return { dataUrl, sizeBytes: snap.data.length };
+    } catch (cdpErr) {
+      const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+      return { dataUrl, sizeBytes: dataUrl.length };
+    }
   }
 
   if (method === "click_download_batch") {
