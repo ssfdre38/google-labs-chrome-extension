@@ -14,7 +14,9 @@
   "host_permissions": [
     "*://flow.google.com/*",
     "*://labs.google/*",
-    "*://*.google.com/*"
+    "*://*.google.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
   ],
   "background": {
     "service_worker": "background.js"
