@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Google Labs MCP Companion</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body {
+      width: 340px;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 16px;
+      font-size: 13px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+    .title {
+      font-weight: 700;
+      font-size: 15px;
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .status-connected { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
+    .status-disconnected { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    
+    .card {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      border: 1px solid #334155;
+    }
+    .card-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .card-row:last-child { margin-bottom: 0; }
+    .label { color: #94a3b8; font-size: 12px; }
+    .value { font-weight: 600; color: #e2e8f0; }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    button {
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    button:hover { background: #2563eb; transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    button.secondary {
+      background: #334155;
+      color: #cbd5e1;
+    }
+    button.secondary:hover { background: #475569; }
+    button.success {
+      background: #059669;
+    }
+    button.success:hover { background: #047857; }
+
+    .footer {
+      font-size: 11px;
+      color: #64748b;
+      text-align: center;
+      margin-top: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">🎬 Google Labs MCP</div>
+    <div id="mcpStatus" class="status-badge status-disconnected">
+      <span class="dot"></span>
+      <span id="mcpStatusText">OFFLINE</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-row">
+      <span class="label">Bridge Port:</span>
+      <span class="value">ws://127.0.0.1:18885</span>
+    </div>
+    <div class="card-row">
+      <span class="label">Google Flow Tab:</span>
+      <span id="flowTabState" class="value" style="color: #f87171;">Not Found</span>
+    </div>
+    <div class="card-row">
+      <span class="label">Subscription:</span>
+      <span id="subState" class="value" style="color: #94a3b8;">Unknown</span>
+    </div>
+  </div>
+
+  <div class="btn-grid">
+    <button id="btnFocus" class="secondary">🎯 Focus Flow</button>
+    <button id="btnApprove" class="success">⚡ Approve</button>
+    <button id="btnScreenshot" class="secondary">📸 Snap View</button>
+    <button id="btnReconnect">🔄 Reconnect</button>
+  </div>
+
+  <div class="footer">
+    Antigravity & Gemini Super Companion v1.0.0
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
