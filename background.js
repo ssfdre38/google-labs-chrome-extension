@@ -236,6 +236,18 @@ async function handleRpcMethod(method, params) {
     };
   }
 
+  if (method === "list_tabs") {
+    const tabs = await chrome.tabs.query({});
+    return tabs.map(t => ({
+      id: t.id,
+      title: t.title || "Untitled",
+      url: t.url || "",
+      active: !!t.active,
+      audible: !!t.audible,
+      pinned: !!t.pinned
+    }));
+  }
+
   if (method === "open_or_focus_flow") {
     const targetUrl = params.url || "https://flow.google.com/";
     let tab = await findTargetTab("flow.google.com");
