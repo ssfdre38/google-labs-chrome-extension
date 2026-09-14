@@ -339,6 +339,49 @@ async function handleRpcMethod(method, params) {
     return res?.result?.value || { success: true };
   }
 
+  if (method === "type_and_submit") {
+    const { tabId: reqTabId, text, submit = true, selector } = params;
+    let tabId = reqTabId;
+    if (!tabId) {
+      const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      tabId = activeTabs[0]?.id;
+    }
+    if (!tabId) throw new Error("No active tab found.");
+
+    // 1. Focus target input element
+    const focusExpr = `
+      (() => {
+        const target = ${selector ? JSON.stringify(selector) : "null"};
+        const el = target ? document.querySelector(target) : (document.querySelector('div[role="textbox"], div[contenteditable="true"], textarea, input[type="text"]'));
+        if (!el) return false;
+        el.focus();
+        return true;
+      })()
+    `;
+    await sendCdp(tabId, "Runtime.evaluate", { expression: focusExpr, returnByValue: true });
+
+    // 2. Insert text via native CDP
+    await sendCdp(tabId, "Input.insertText", { text });
+
+    // 3. Dispatch Enter if submit is true
+    if (submit) {
+      await sendCdp(tabId, "Input.dispatchKeyEvent", {
+        type: "keyDown",
+        key: "Enter",
+        code: "Enter",
+        windowsVirtualKeyCode: 13
+      });
+      await sendCdp(tabId, "Input.dispatchKeyEvent", {
+        type: "keyUp",
+        key: "Enter",
+        code: "Enter",
+        windowsVirtualKeyCode: 13
+      });
+    }
+
+    return { success: true, textLength: text.length, submitted: submit };
+  }
+
   if (method === "approve_render") {
     const tab = await findTargetTab();
     if (!tab) throw new Error("No active Google Flow tab found.");
