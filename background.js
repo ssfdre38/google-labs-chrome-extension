@@ -248,6 +248,44 @@ async function handleRpcMethod(method, params) {
     }));
   }
 
+  if (method === "scroll_page") {
+    const { tabId: reqTabId, deltaY = 500, deltaX = 0, toBottom = false, toTop = false, selector } = params;
+    let tabId = reqTabId;
+    if (!tabId) {
+      const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      tabId = activeTabs[0]?.id;
+    }
+    if (!tabId) throw new Error("No active tab found to scroll.");
+
+    const expr = `
+      (() => {
+        const target = ${selector ? JSON.stringify(selector) : "null"};
+        let el = target ? document.querySelector(target) : null;
+        if (!el) {
+          const all = Array.from(document.querySelectorAll('*'));
+          el = all.find(e => {
+            const s = window.getComputedStyle(e);
+            return (s.overflowY === 'auto' || s.overflowY === 'scroll') && e.scrollHeight > e.clientHeight + 50;
+          });
+        }
+        if (!el) el = document.scrollingElement || document.documentElement || document.body;
+
+        const before = el.scrollTop;
+        if (${toBottom}) {
+          el.scrollTop = el.scrollHeight;
+        } else if (${toTop}) {
+          el.scrollTop = 0;
+        } else {
+          el.scrollBy({ top: ${deltaY}, left: ${deltaX}, behavior: 'smooth' });
+        }
+        return { scrolled: true, before, after: el.scrollTop, scrollHeight: el.scrollHeight };
+      })()
+    `;
+
+    const res = await sendCdp(tabId, "Runtime.evaluate", { expression: expr, returnByValue: true });
+    return res?.result?.value || { scrolled: true };
+  }
+
   if (method === "open_or_focus_flow") {
     const targetUrl = params.url || "https://flow.google.com/";
     let tab = await findTargetTab("flow.google.com");
