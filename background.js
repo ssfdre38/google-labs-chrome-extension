@@ -410,16 +410,33 @@ async function handleRpcMethod(method, params) {
   }
 
   if (method === "capture_screenshot") {
-    const tab = await findTargetTab();
-    if (!tab) throw new Error("No active Google Flow or Labs tab found.");
+    let tab = null;
+    if (params && params.tabId) {
+      try {
+        tab = await chrome.tabs.get(params.tabId);
+      } catch {}
+    }
+    if (!tab) {
+      tab = await findTargetTab();
+    }
+    if (!tab) {
+      const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      tab = activeTabs[0];
+    }
+    if (!tab) {
+      const allTabs = await chrome.tabs.query({});
+      tab = allTabs[0];
+    }
+    if (!tab) throw new Error("No open tab found to capture.");
 
     try {
       const snap = await sendCdp(tab.id, "Page.captureScreenshot", { format: "png" });
       const dataUrl = `data:image/png;base64,${snap.data}`;
-      return { dataUrl, sizeBytes: snap.data.length };
+      return { dataUrl, data: snap.data, sizeBytes: snap.data.length, tabId: tab.id, title: tab.title };
     } catch (cdpErr) {
       const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
-      return { dataUrl, sizeBytes: dataUrl.length };
+      const rawB64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+      return { dataUrl, data: rawB64, sizeBytes: rawB64.length, tabId: tab.id, title: tab.title };
     }
   }
 
